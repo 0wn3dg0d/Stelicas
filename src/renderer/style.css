@@ -1,0 +1,296 @@
+/* General styles */
+body {
+  background-color: #1b2838;
+  color: #c6d4df;
+  font-family: 'Arial', sans-serif;
+  margin: 0;
+  padding: 20px;
+  user-select: none;
+  overflow: hidden;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  -webkit-app-region: drag; /* Enable dragging for the entire body */
+}
+
+/* Disable dragging for interactive elements */
+input, button, select, .window-controls, .userdata-id {
+  -webkit-app-region: no-drag; /* Disable dragging for these elements */
+}
+
+/* Container for the main content */
+.container {
+  width: 90%; /* Responsive width */
+  max-width: 1200px; /* Maximum width */
+  padding: 10px;
+  animation: fadeIn 0.5s ease-in-out;
+  box-sizing: border-box;
+}
+
+/* Header section */
+.header {
+  text-align: center;
+  margin-bottom: 30px;
+  padding: 10px;
+}
+
+.header h1 {
+  color: #66c0f4;
+  font-size: 4.5rem;
+  margin: 0;
+  animation: slideDown 0.5s ease-in-out;
+}
+
+.header .subtitle {
+  color: #8f98a0;
+  font-size: 1rem;
+  margin: 0;
+  animation: slideDown 0.6s ease-in-out;
+}
+
+/* Card for the form */
+.card {
+  background-color: #2a3f5a;
+  border: none;
+  border-radius: 10px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  animation: fadeInUp 0.7s ease-in-out;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+/* Form elements */
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-label {
+  color: #c6d4df;
+  font-weight: bold;
+  display: block;
+  margin-bottom: 5px;
+}
+
+.form-control {
+  background-color: #3d4f63;
+  color: #c6d4df;
+  border: 1px solid #4a5a6e;
+  border-radius: 5px;
+  padding: 10px;
+  width: 100%;
+  transition: all 0.3s ease;
+  box-sizing: border-box;
+}
+
+.form-control:focus {
+  background-color: #3d4f63;
+  color: #c6d4df;
+  border-color: #66c0f4;
+  box-shadow: 0 0 10px rgba(102, 192, 244, 0.5);
+}
+
+/* Buttons */
+.btn-primary {
+  background-color: #66c0f4;
+  border: none;
+  color: #1b2838;
+  font-weight: bold;
+  padding: 10px 20px;
+  border-radius: 5px;
+  transition: background-color 0.3s ease;
+  width: 100%;
+  cursor: pointer;
+}
+
+.btn-primary:hover {
+  background-color: #4a90e2;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(102, 192, 244, 0.3);
+}
+
+/* Progress bar */
+.progress-container {
+  margin-top: 20px;
+  animation: fadeInUp 0.8s ease-in-out;
+  width: 100%;
+}
+
+.progress {
+  background-color: #3d4f63;
+  height: 20px;
+  border-radius: 10px;
+  overflow: hidden;
+  position: relative;
+}
+
+.progress-bar {
+  background-color: #66c0f4;
+  transition: width 0.3s ease;
+  height: 100%;
+  position: relative;
+}
+
+.progress-text {
+  position: absolute;
+  right: 10px;
+  color: #1b2838;
+  font-weight: bold;
+  line-height: 20px;
+}
+
+/* Status text */
+.status-text {
+  margin-top: 10px;
+  color: #66c0f4;
+  font-size: 14px;
+  text-align: center;
+}
+
+/* Highlighted text */
+.highlight {
+  color: #ff6b6b;
+  font-weight: bold;
+}
+
+/* Window controls */
+.window-controls {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  gap: 5px;
+}
+
+.window-control-btn {
+  background: none;
+  border: none;
+  color: #c6d4df;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 5px 10px;
+  border-radius: 5px;
+  transition: background-color 0.3s ease;
+}
+
+.window-control-btn:hover {
+  background-color: #66c0f4;
+  color: #1b2838;
+}
+
+/* Userdata IDs */
+.userdata-ids {
+  margin-top: 20px;
+  color: #66c0f4;
+  text-align: center;
+}
+
+.userdata-id {
+  cursor: pointer;
+  margin-left: 5px;
+  transition: color 0.3s ease;
+}
+
+.userdata-id:hover {
+  color: #ff6b6b;
+  text-decoration: underline;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Disabled button styles */
+.btn-primary:disabled {
+  background-color: #4a5a6e !important; /* Darker, less prominent color */
+  color: #8f98a0 !important; /* Muted text color */
+  cursor: not-allowed !important; /* Show "not allowed" cursor */
+  opacity: 0.7 !important; /* Make it slightly transparent */
+  box-shadow: none !important; /* Remove any shadow */
+  transform: none !important; /* Remove any hover effects */
+}
+
+.btn-primary:disabled:hover {
+  background-color: #4a5a6e !important; /* Keep the same color on hover */
+  color: #8f98a0 !important; /* Keep the same text color on hover */
+  cursor: not-allowed !important; /* Keep the "not allowed" cursor */
+}
+
+/* Tooltip for disabled button */
+.btn-primary:disabled::after {
+  content: "Please close Steam to collect the database";
+  position: absolute;
+  top: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #2a3f5a;
+  color: #c6d4df;
+  padding: 5px 10px;
+  border-radius: 5px;
+  font-size: 12px;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.btn-primary:disabled:hover::after {
+  opacity: 1;
+  visibility: visible;
+}
+
+.header .author {
+  color: #8f98a0;
+  font-size: 1.2rem;
+  margin: 0 0 10px 0;
+  text-align: center;
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+.header .author .gradient-text {
+  background: linear-gradient(45deg, #66c0f4, #4a90e2);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-weight: bold;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
