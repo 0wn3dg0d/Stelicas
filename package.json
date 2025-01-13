@@ -15,15 +15,33 @@
     },
     "win": {
       "target": "nsis",
-      "icon": "build/SCLS.ico"
+      "icon": "build/SCLS.ico",
+      "extraFiles": [
+        {
+          "from": "data",
+          "to": "data"
+        }
+      ]
     },
     "mac": {
       "target": "dmg",
-      "icon": "build/SCLS.ico"
+      "icon": "build/SCLS.ico",
+      "extraFiles": [
+        {
+          "from": "data",
+          "to": "data"
+        }
+      ]
     },
     "linux": {
       "target": "AppImage",
-      "icon": "build/SCLS.ico"
+      "icon": "build/SCLS.ico",
+      "extraFiles": [
+        {
+          "from": "data",
+          "to": "data"
+        }
+      ]
     },
     "extraResources": [
       {
