@@ -160,7 +160,7 @@ The output consists of two CSV files:
 The Steam client locks the `leveldb` database while it is running. To access the database and extract your library categories, the Steam client must be closed. Stelicas includes a built-in check to ensure that Steam is not running before proceeding.
 
 ### Will Stelicas work if there are multiple Steam accounts on the computer?
-Currently, this scenario has not been tested. In theory, Stelicas should work with multiple accounts, as it relies on the Steam3 ID to identify the correct user data. However, since this has not been verified in practice, I cannot guarantee its functionality in such cases. If you have multiple accounts, Ш recommend testing and providing feedback.
+Currently, this scenario has not been tested. In theory, Stelicas should work with multiple accounts, as it relies on the Steam3 ID to identify the correct user data. However, since this has not been verified in practice, I cannot guarantee its functionality in such cases. If you have multiple accounts, I recommend testing and providing feedback.
 
 ### Why are games without categories not included in the output?
 Stelicas is designed to extract and organize games based on the categories you have assigned in your Steam library. If a game is not assigned to any category, it will not appear in the output. This is because the tool focuses on categorizing and analyzing games that have been explicitly organized by the user. If you want to include uncategorized games, you can manually assign them to a category in your Steam library and rerun the tool.
