@@ -144,7 +144,7 @@ The output consists of two CSV files:
 - **franchises**: The franchises associated with the game.
 - **short_description**: A short description of the game.
 - **supported_language**: Indicates whether the game supports your selected language.
-- **Steam-Link**: A link to the game`s Steam store page.
+- **Steam-Link**: A link to the game's Steam Community page (not the Store page). This is intentional because some games may have been removed from the Steam Store but are still accessible via their Community pages. Using the Community link ensures that you can access the page for any game, even if it is no longer available in the Store.
 - **Pic**: A link to the game`s header image.
 
 ### Example Output
