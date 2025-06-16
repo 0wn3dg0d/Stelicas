@@ -1,6 +1,6 @@
 {
   "name": "stelicas",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Stelicas (Steam Library Categories Scraper) - A tool to scrape and organize Steam library categories.",
   "main": "src/main.js",
   "scripts": {
