@@ -5,26 +5,17 @@ const path = require('path');
 const axios = require('axios');
 const { app } = require('electron');
 
-// Define the base path for the application
 const appPath = app.isPackaged 
-  ? path.dirname(app.getPath('exe')) // For packaged version, use the directory of the executable
-  : app.getAppPath(); // For development, use the app's root directory
+  ? path.dirname(app.getPath('exe'))
+  : app.getAppPath();
 
-// Paths
 const originalDbPath = path.join(process.env.LOCALAPPDATA, 'Steam', 'htmlcache', 'Local Storage', 'leveldb');
-const copyDbPath = path.join(appPath, 'leveldb-copy'); // Use the app's base path
-const outputFolder = path.join(appPath, 'output'); // Use the app's base path
+const copyDbPath = path.join(appPath, 'leveldb-copy');
+const outputFolder = path.join(appPath, 'output');
 
-// Configuration
-const BATCH_SIZE = 200; // Number of app IDs to process in a single batch
-const DELAY_BETWEEN_BATCHES = 1000; // Delay between batches in milliseconds (1 second)
+const BATCH_SIZE = 200;
+const DELAY_BETWEEN_BATCHES = 1000;
 
-// Utility functions
-
-/**
- * Deletes a folder and its contents recursively.
- * @param {string} folderPath - Path to the folder to delete.
- */
 const deleteFolder = async (folderPath) => {
   try {
     await fs.rm(folderPath, { recursive: true, force: true });
@@ -34,11 +25,6 @@ const deleteFolder = async (folderPath) => {
   }
 };
 
-/**
- * Copies a folder and its contents recursively.
- * @param {string} source - Source folder path.
- * @param {string} target - Target folder path.
- */
 const copyFolder = async (source, target) => {
   try {
     await fs.mkdir(target, { recursive: true });
@@ -61,11 +47,6 @@ const copyFolder = async (source, target) => {
   }
 };
 
-/**
- * Unserializes collections from hex-encoded input.
- * @param {string} input - Hex-encoded input string.
- * @returns {Object} - Unserialized collections.
- */
 const unserializeCollections = (input) => {
   const transformed = input.startsWith('01') 
     ? input.slice(2).match(/.{1,2}/g).join('00').concat('00') 
@@ -85,20 +66,12 @@ const unserializeCollections = (input) => {
   return output;
 };
 
-/**
- * Writes data to a CSV file.
- * @param {Array} data - Data to write.
- * @param {string} outputPath - Path to the output CSV file.
- * @param {Array} headers - CSV headers.
- * @param {string} delimiter - CSV delimiter (default is tab).
- */
 const writeToCsv = async (data, outputPath, headers, delimiter = '\t') => {
   try {
     const headerLine = headers.join(delimiter) + '\n';
     const dataLines = data.map(row => {
       return headers.map(header => {
         const value = row[header];
-        // Replace undefined or null values with an empty string
         return value === undefined || value === null ? '' : value;
       }).join(delimiter);
     }).join('\n');
@@ -111,13 +84,6 @@ const writeToCsv = async (data, outputPath, headers, delimiter = '\t') => {
   }
 };
 
-/**
- * Fetches game details in batches to avoid rate limits.
- * @param {Array} appIds - Array of app IDs to fetch details for.
- * @param {string} language - Language to fetch details in.
- * @param {Function} updateCallback - Callback to update progress.
- * @returns {Array} - Array of game details.
- */
 const getGameDetailsBatched = async (appIds, language, countryCode, updateCallback) => {
   const allGameDetails = [];
   const totalBatches = Math.ceil(appIds.length / BATCH_SIZE);
@@ -130,8 +96,7 @@ const getGameDetailsBatched = async (appIds, language, countryCode, updateCallba
       const gameDetails = await getGameDetails(batch, language, countryCode);
       allGameDetails.push(...gameDetails);
 
-      // Update progress after each request
-      const progress = 70 + Math.floor(((i / BATCH_SIZE + 1) / totalBatches) * 20); // 70-90%
+      const progress = 70 + Math.floor(((i / BATCH_SIZE + 1) / totalBatches) * 20);
       updateCallback(progress, `Fetching game details (${i / BATCH_SIZE + 1}/${totalBatches})...`);
     } catch (err) {
       console.error('Error fetching batch:', err);
@@ -145,13 +110,6 @@ const getGameDetailsBatched = async (appIds, language, countryCode, updateCallba
   return allGameDetails;
 };
 
-/**
- * Fetches game details from the Steam API.
- * @param {Array} appIds - Array of app IDs to fetch details for.
- * @param {string} language - Language to fetch details in.
- * @param {string} countryCode - Country code to fetch details for.
- * @returns {Array} - Array of game details.
- */
 const getGameDetails = async (appIds, language, countryCode) => {
   const url = 'https://api.steampowered.com/IStoreBrowseService/GetItems/v1';
   const requestData = {
@@ -183,10 +141,6 @@ const getGameDetails = async (appIds, language, countryCode) => {
   }
 };
 
-/**
- * Loads tags from a file into a Map.
- * @returns {Map} - Map of tag IDs to tag names.
- */
 const loadTags = async () => {
   const tagsMap = new Map();
 
@@ -205,23 +159,12 @@ const loadTags = async () => {
   return tagsMap;
 };
 
-/**
- * Formats a Unix timestamp into a readable date string.
- * @param {string} timestamp - Unix timestamp.
- * @returns {string} - Formatted date string.
- */
 const formatDate = (timestamp) => {
   if (!timestamp) return '';
   const date = new Date(parseInt(timestamp) * 1000);
   return `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')}.${date.getFullYear()}`;
 };
 
-/**
- * Checks if a game supports a specific language and its features.
- * @param {Array} supportedLanguages - Array of supported languages.
- * @param {number} languageId - The language ID to check.
- * @returns {string} - String indicating language support.
- */
 const getLanguageSupport = (supportedLanguages, languageId) => {
   const language = supportedLanguages.find(lang => lang.elanguage === languageId) || {};
   const { supported = false, full_audio = false, subtitles = false } = language;
@@ -235,9 +178,6 @@ const getLanguageSupport = (supportedLanguages, languageId) => {
   }
 };
 
-/**
- * Main function to process Steam game data.
- */
 const main = async (steam3Id, language, countryCode, supportedLanguage, updateCallback) => {
   const gameCategories = new Map();
   const tagsMap = await loadTags();
@@ -256,12 +196,10 @@ const main = async (steam3Id, language, countryCode, supportedLanguage, updateCa
     let totalEntries = 0;
     let processedEntries = 0;
 
-    // Count total entries
     for await (const _ of db.iterator()) {
       totalEntries++;
     }
 
-    // Process entries
     for await (const [key, value] of db.iterator()) {
       if (key.startsWith(`_https://steamloopback.host\u0000\u0001U${steam3Id}-cloud-storage-namespace`)) {
         const decodedValue = unserializeCollections(value);
@@ -281,9 +219,8 @@ const main = async (steam3Id, language, countryCode, supportedLanguage, updateCa
         }
       }
 
-      // Update progress
       processedEntries++;
-      const progress = 40 + Math.floor((processedEntries / totalEntries) * 30); // 40-70%
+      const progress = 40 + Math.floor((processedEntries / totalEntries) * 30);
       updateCallback(progress, `Processing database entries (${processedEntries}/${totalEntries})...`);
     }
 
@@ -321,7 +258,7 @@ const main = async (steam3Id, language, countryCode, supportedLanguage, updateCa
         short_description: `"${(game.basic_info?.short_description || '').replace(/"/g, '""')}"`,
         supported_language: getLanguageSupport(game.supported_languages || [], parseInt(supportedLanguage)),
         'Steam-Link': `https://steamcommunity.com/app/${game.appid}`,
-        'Pic': `https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/${game.appid}/header.jpg`,
+        'Pic': game.assets?.header ? `https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/${game.appid}/${game.assets.header}` : '',
       };
     });
 
