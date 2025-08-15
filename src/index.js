@@ -255,7 +255,7 @@ const main = async (steam3Id, language, countryCode, supportedLanguage, updateCa
         publishers: (game.basic_info?.publishers || []).map(p => p.name).join(';'),
         developers: (game.basic_info?.developers || []).map(d => d.name).join(';'),
         franchises: (game.basic_info?.franchises || []).map(f => f.name).join(';'),
-        short_description: `"${(game.basic_info?.short_description || '').replace(/"/g, '""')}"`,
+        short_description: `"${(game.basic_info?.short_description || '').replace(/"/g, '""').replace(/\r?\n/g, ' ')}"`,
         supported_language: getLanguageSupport(game.supported_languages || [], parseInt(supportedLanguage)),
         'Steam-Link': `https://steamcommunity.com/app/${game.appid}`,
         'Pic': game.assets?.header ? `https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/${game.appid}/${game.assets.header}` : '',
