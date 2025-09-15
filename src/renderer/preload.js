@@ -7,5 +7,7 @@ contextBridge.exposeInMainWorld('electron', {
   closeWindow: () => ipcRenderer.send('close-window'),
   getUserdataIds: () => ipcRenderer.invoke('get-userdata-ids'),
   isSteamRunning: () => ipcRenderer.invoke('is-steam-running'),
-  getSettings: () => ipcRenderer.invoke('get-settings')
+  getSettings: () => ipcRenderer.invoke('get-settings'),
+  getSteamPath: () => ipcRenderer.invoke('get-steam-path'),
+  selectSteamPath: () => ipcRenderer.invoke('select-steam-path')
 });

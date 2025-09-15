@@ -12,24 +12,21 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  -webkit-app-region: drag; /* Enable dragging for the entire body */
+  -webkit-app-region: drag;
 }
 
-/* Disable dragging for interactive elements */
-input, button, select, .window-controls, .userdata-id {
-  -webkit-app-region: no-drag; /* Disable dragging for these elements */
+input, button, select, .window-controls, .userdata-id, .steam-path-container {
+  -webkit-app-region: no-drag;
 }
 
-/* Container for the main content */
 .container {
-  width: 90%; /* Responsive width */
-  max-width: 1200px; /* Maximum width */
+  width: 90%;
+  max-width: 1200px;
   padding: 10px;
   animation: fadeIn 0.5s ease-in-out;
   box-sizing: border-box;
 }
 
-/* Header section */
 .header {
   text-align: center;
   margin-bottom: 30px;
@@ -50,7 +47,6 @@ input, button, select, .window-controls, .userdata-id {
   animation: slideDown 0.6s ease-in-out;
 }
 
-/* Card for the form */
 .card {
   background-color: #2a3f5a;
   border: none;
@@ -61,7 +57,6 @@ input, button, select, .window-controls, .userdata-id {
   box-sizing: border-box;
 }
 
-/* Form elements */
 .form-group {
   margin-bottom: 20px;
 }
@@ -91,7 +86,6 @@ input, button, select, .window-controls, .userdata-id {
   box-shadow: 0 0 10px rgba(102, 192, 244, 0.5);
 }
 
-/* Buttons */
 .btn-primary {
   background-color: #66c0f4;
   border: none;
@@ -110,7 +104,15 @@ input, button, select, .window-controls, .userdata-id {
   box-shadow: 0 4px 10px rgba(102, 192, 244, 0.3);
 }
 
-/* Progress bar */
+.btn-secondary {
+    background-color: #4a5a6e;
+    color: #c6d4df;
+}
+
+.btn-secondary:hover {
+    background-color: #3d4f63;
+}
+
 .progress-container {
   margin-top: 20px;
   animation: fadeInUp 0.8s ease-in-out;
@@ -140,21 +142,19 @@ input, button, select, .window-controls, .userdata-id {
   line-height: 20px;
 }
 
-/* Status text */
 .status-text {
   margin-top: 10px;
   color: #66c0f4;
   font-size: 14px;
   text-align: center;
+  min-height: 20px;
 }
 
-/* Highlighted text */
 .highlight {
   color: #ff6b6b;
   font-weight: bold;
 }
 
-/* Window controls */
 .window-controls {
   position: absolute;
   top: 10px;
@@ -179,73 +179,72 @@ input, button, select, .window-controls, .userdata-id {
   color: #1b2838;
 }
 
-/* Userdata IDs */
 .userdata-ids {
-  margin-top: 20px;
+  margin-top: 15px;
   color: #66c0f4;
   text-align: center;
+  min-height: 20px;
 }
 
 .userdata-id {
   cursor: pointer;
-  margin-left: 5px;
-  transition: color 0.3s ease;
+  margin: 0 5px;
+  padding: 2px 6px;
+  border: 1px solid #66c0f4;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+  display: inline-block;
 }
 
 .userdata-id:hover {
-  color: #ff6b6b;
-  text-decoration: underline;
+  color: #1b2838;
+  background-color: #66c0f4;
+  text-decoration: none;
 }
 
-/* Animations */
+.steam-path-container {
+    text-align: center;
+    margin-top: 15px;
+    padding: 10px;
+    background-color: #2a3f5a80;
+    border-radius: 5px;
+}
+
+#steam-path-message {
+    color: #ff6b6b;
+    margin-bottom: 10px;
+}
+
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 @keyframes slideDown {
-  from {
-    transform: translateY(-20px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
+  from { transform: translateY(-20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
 }
 
 @keyframes fadeInUp {
-  from {
-    transform: translateY(20px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
 }
 
-/* Disabled button styles */
 .btn-primary:disabled {
-  background-color: #4a5a6e !important; /* Darker, less prominent color */
-  color: #8f98a0 !important; /* Muted text color */
-  cursor: not-allowed !important; /* Show "not allowed" cursor */
-  opacity: 0.7 !important; /* Make it slightly transparent */
-  box-shadow: none !important; /* Remove any shadow */
-  transform: none !important; /* Remove any hover effects */
+  background-color: #4a5a6e !important;
+  color: #8f98a0 !important;
+  cursor: not-allowed !important;
+  opacity: 0.7 !important;
+  box-shadow: none !important;
+  transform: none !important;
 }
 
 .btn-primary:disabled:hover {
-  background-color: #4a5a6e !important; /* Keep the same color on hover */
-  color: #8f98a0 !important; /* Keep the same text color on hover */
-  cursor: not-allowed !important; /* Keep the "not allowed" cursor */
+  background-color: #4a5a6e !important;
+  color: #8f98a0 !important;
+  cursor: not-allowed !important;
 }
 
-/* Tooltip for disabled button */
 .btn-primary:disabled::after {
   content: "Please close Steam to collect the database";
   position: absolute;
@@ -282,15 +281,4 @@ input, button, select, .window-controls, .userdata-id {
   -webkit-text-fill-color: transparent;
   font-weight: bold;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }

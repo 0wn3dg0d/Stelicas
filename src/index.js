@@ -1,70 +1,17 @@
-const { Level } = require('level');
-const iconv = require('iconv-lite');
 const fs = require('fs').promises;
 const path = require('path');
 const axios = require('axios');
 const { app } = require('electron');
 
-const appPath = app.isPackaged 
+const appPath = app.isPackaged
   ? path.dirname(app.getPath('exe'))
   : app.getAppPath();
 
-const originalDbPath = path.join(process.env.LOCALAPPDATA, 'Steam', 'htmlcache', 'Local Storage', 'leveldb');
-const copyDbPath = path.join(appPath, 'leveldb-copy');
 const outputFolder = path.join(appPath, 'output');
 
 const BATCH_SIZE = 200;
-const DELAY_BETWEEN_BATCHES = 1000;
-
-const deleteFolder = async (folderPath) => {
-  try {
-    await fs.rm(folderPath, { recursive: true, force: true });
-    console.log(`Deleted old copy: ${folderPath}`);
-  } catch (err) {
-    console.error(`Error deleting folder ${folderPath}:`, err);
-  }
-};
-
-const copyFolder = async (source, target) => {
-  try {
-    await fs.mkdir(target, { recursive: true });
-    const files = await fs.readdir(source);
-
-    for (const file of files) {
-      const sourcePath = path.join(source, file);
-      const targetPath = path.join(target, file);
-      const stat = await fs.lstat(sourcePath);
-
-      if (stat.isDirectory()) {
-        await copyFolder(sourcePath, targetPath);
-      } else {
-        await fs.copyFile(sourcePath, targetPath);
-      }
-    }
-    console.log(`Copy completed: ${source} -> ${target}`);
-  } catch (err) {
-    console.error(`Error copying folder ${source}:`, err);
-  }
-};
-
-const unserializeCollections = (input) => {
-  const transformed = input.startsWith('01') 
-    ? input.slice(2).match(/.{1,2}/g).join('00').concat('00') 
-    : input.slice(2);
-  const iBuf = Buffer.from(transformed, 'hex');
-  const decoded = iconv.decode(iBuf, 'utf16le');
-  const collections = JSON.parse(decoded);
-  const output = {};
-
-  collections.forEach(([key, value]) => {
-    if (value.value) {
-      value.value = JSON.parse(value.value);
-    }
-    output[key] = value;
-  });
-
-  return output;
-};
+const CONCURRENT_REQUESTS = 10;
+const DELAY_BETWEEN_CHUNKS = 1000;
 
 const writeToCsv = async (data, outputPath, headers, delimiter = '\t') => {
   try {
@@ -75,39 +22,12 @@ const writeToCsv = async (data, outputPath, headers, delimiter = '\t') => {
         return value === undefined || value === null ? '' : value;
       }).join(delimiter);
     }).join('\n');
-
     await fs.mkdir(path.dirname(outputPath), { recursive: true });
     await fs.writeFile(outputPath, headerLine + dataLines, 'utf8');
     console.log('Data successfully written to CSV file:', outputPath);
   } catch (err) {
     console.error('Error writing to CSV file:', err);
   }
-};
-
-const getGameDetailsBatched = async (appIds, language, countryCode, updateCallback) => {
-  const allGameDetails = [];
-  const totalBatches = Math.ceil(appIds.length / BATCH_SIZE);
-
-  for (let i = 0; i < appIds.length; i += BATCH_SIZE) {
-    const batch = appIds.slice(i, i + BATCH_SIZE);
-    console.log(`Fetching batch ${i / BATCH_SIZE + 1} of ${totalBatches}`);
-
-    try {
-      const gameDetails = await getGameDetails(batch, language, countryCode);
-      allGameDetails.push(...gameDetails);
-
-      const progress = 70 + Math.floor(((i / BATCH_SIZE + 1) / totalBatches) * 20);
-      updateCallback(progress, `Fetching game details (${i / BATCH_SIZE + 1}/${totalBatches})...`);
-    } catch (err) {
-      console.error('Error fetching batch:', err);
-    }
-
-    if (i + BATCH_SIZE < appIds.length) {
-      await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_BATCHES));
-    }
-  }
-
-  return allGameDetails;
 };
 
 const getGameDetails = async (appIds, language, countryCode) => {
@@ -131,19 +51,61 @@ const getGameDetails = async (appIds, language, countryCode) => {
       include_included_items: true,
     },
   };
-
   try {
     const response = await axios.get(`${url}?input_json=${encodeURIComponent(JSON.stringify(requestData))}`);
-    return response.data.response.store_items;
+    return response.data.response.store_items || [];
   } catch (err) {
-    console.error('Error fetching game details:', err);
+    console.error(`Error fetching game details for batch, returning empty. Error: ${err.message}`);
     return [];
   }
 };
 
+const getGameDetailsBatched = async (appIds, language, countryCode, updateCallback) => {
+    const allGameDetails = [];
+    const chunks = [];
+  
+    for (let i = 0; i < appIds.length; i += BATCH_SIZE) {
+      chunks.push(appIds.slice(i, i + BATCH_SIZE));
+    }
+  
+    const totalChunks = chunks.length;
+    let processedChunks = 0;
+  
+    for (let i = 0; i < totalChunks; i += CONCURRENT_REQUESTS) {
+      const currentBatchOfChunks = chunks.slice(i, i + CONCURRENT_REQUESTS);
+      
+      console.log(`Processing chunk group starting at index ${i}. Total groups: ${Math.ceil(totalChunks/CONCURRENT_REQUESTS)}`);
+  
+      const promises = currentBatchOfChunks.map(chunk => getGameDetails(chunk, language, countryCode));
+  
+      try {
+        const results = await Promise.all(promises);
+        
+        results.forEach(gameDetails => {
+          if (Array.isArray(gameDetails)) {
+            allGameDetails.push(...gameDetails);
+          }
+        });
+  
+        processedChunks += currentBatchOfChunks.length;
+  
+        const progress = 50 + Math.floor((processedChunks / totalChunks) * 40);
+        updateCallback(progress, `Fetching game details (${processedChunks}/${totalChunks} batches)...`);
+  
+      } catch (err) {
+        console.error('Error processing a chunk of requests:', err);
+      }
+  
+      if (i + CONCURRENT_REQUESTS < totalChunks) {
+        await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_CHUNKS));
+      }
+    }
+  
+    return allGameDetails;
+};
+
 const loadTags = async () => {
   const tagsMap = new Map();
-
   try {
     const tagsFile = await fs.readFile(path.join(appPath, 'data', 'tags.txt'), 'utf8');
     tagsFile.split('\n').forEach(line => {
@@ -155,7 +117,6 @@ const loadTags = async () => {
   } catch (err) {
     console.error('Error loading tags:', err);
   }
-
   return tagsMap;
 };
 
@@ -168,47 +129,35 @@ const formatDate = (timestamp) => {
 const getLanguageSupport = (supportedLanguages, languageId) => {
   const language = supportedLanguages.find(lang => lang.elanguage === languageId) || {};
   const { supported = false, full_audio = false, subtitles = false } = language;
-
-  if (supported && full_audio && subtitles) {
-    return '{TRUE}';
-  } else if (!supported && !full_audio && !subtitles) {
-    return '{FALSE}';
-  } else {
-    return `{${supported};${full_audio};${subtitles}}`;
-  }
+  if (supported && full_audio && subtitles) return '{TRUE}';
+  if (!supported && !full_audio && !subtitles) return '{FALSE}';
+  return `{${supported};${full_audio};${subtitles}}`;
 };
 
-const main = async (steam3Id, language, countryCode, supportedLanguage, updateCallback) => {
+const main = async (steam3Id, language, countryCode, supportedLanguage, updateCallback, steamPath) => {
   const gameCategories = new Map();
   const tagsMap = await loadTags();
-
   try {
-    updateCallback(10, 'Deleting old copy...');
-    await deleteFolder(copyDbPath);
-
-    updateCallback(20, 'Copying database...');
-    await copyFolder(originalDbPath, copyDbPath);
-
-    updateCallback(30, 'Opening database...');
-    const db = new Level(copyDbPath, { valueEncoding: 'hex' });
-
-    updateCallback(40, 'Reading database entries...');
-    let totalEntries = 0;
-    let processedEntries = 0;
-
-    for await (const _ of db.iterator()) {
-      totalEntries++;
+    updateCallback(10, 'Finding Steam data file...');
+    if (!steamPath) {
+        throw new Error('Steam installation path not found. Please select it manually.');
     }
+    const collectionsFilePath = path.join(steamPath, 'userdata', steam3Id, 'config', 'cloudstorage', 'cloud-storage-namespace-1.json');
+    console.log(`Reading collections from: ${collectionsFilePath}`);
+    updateCallback(20, 'Reading collections file...');
+    const fileContent = await fs.readFile(collectionsFilePath, 'utf8');
+    const collectionsData = JSON.parse(fileContent);
 
-    for await (const [key, value] of db.iterator()) {
-      if (key.startsWith(`_https://steamloopback.host\u0000\u0001U${steam3Id}-cloud-storage-namespace`)) {
-        const decodedValue = unserializeCollections(value);
-
-        for (const collection of Object.values(decodedValue)) {
-          if (collection?.value?.name && Array.isArray(collection.value.added)) {
-            const collectionName = collection.value.name;
-            const gameIds = collection.value.added;
-
+    updateCallback(30, 'Parsing collections...');
+    for (const collectionArray of collectionsData) {
+      const key = collectionArray[0];
+      const data = collectionArray[1];
+      if (key.startsWith('user-collections.') && !data.is_deleted) {
+        try {
+          const collectionValue = JSON.parse(data.value);
+          const collectionName = collectionValue.name;
+          const gameIds = collectionValue.added;
+          if (collectionName && Array.isArray(gameIds)) {
             for (const gameId of gameIds) {
               if (!gameCategories.has(gameId)) {
                 gameCategories.set(gameId, new Set());
@@ -216,31 +165,40 @@ const main = async (steam3Id, language, countryCode, supportedLanguage, updateCa
               gameCategories.get(gameId).add(collectionName);
             }
           }
-        }
+        } catch (e) {}
       }
-
-      processedEntries++;
-      const progress = 40 + Math.floor((processedEntries / totalEntries) * 30);
-      updateCallback(progress, `Processing database entries (${processedEntries}/${totalEntries})...`);
     }
 
-    updateCallback(70, 'Preparing data for CSV...');
+    if (gameCategories.size === 0) {
+      updateCallback(100, 'No categories found. The output files will be empty.');
+      console.log('No game categories were found in the JSON file.');
+    }
+
+    updateCallback(40, 'Preparing data for CSV...');
     const appIds = Array.from(gameCategories.keys());
     const idCategoryData = Array.from(gameCategories.entries()).map(([id, categories]) => ({
       game_id: id,
       categories: Array.from(categories).join(';'),
     }));
-
     await fs.mkdir(outputFolder, { recursive: true });
     await writeToCsv(idCategoryData, path.join(outputFolder, 'id_categories.csv'), ['game_id', 'categories']);
+    
+    if (appIds.length === 0) {
+      await writeToCsv([], path.join(outputFolder, 'final_data.csv'), [
+        'game_id', 'name', 'categories', 'type', 'tags', 'release_date',
+        'review_percentage', 'review_count', 'is_free', 'is_early_access', 'publishers', 'developers',
+        'franchises', 'short_description', 'supported_language', 'Steam-Link', 'Pic'
+      ]);
+      updateCallback(100, 'Process completed!');
+      return;
+    }
 
-    updateCallback(70, 'Fetching game details...');
+    updateCallback(50, 'Fetching game details...');
     const gameDetails = await getGameDetailsBatched(appIds, language, countryCode, updateCallback);
 
     updateCallback(90, 'Preparing final CSV data...');
     const csvData = gameDetails.map(game => {
       const releaseDate = game.release?.original_release_date || game.release?.steam_release_date;
-
       return {
         game_id: game.appid,
         name: game.name || '',
@@ -271,12 +229,10 @@ const main = async (steam3Id, language, countryCode, supportedLanguage, updateCa
         'franchises', 'short_description', 'supported_language', 'Steam-Link', 'Pic'
       ]
     );
-
     updateCallback(100, 'Process completed!');
-    await db.close();
   } catch (err) {
     console.error('Error in main:', err);
-    updateCallback(0, 'Error occurred. Check console for details.');
+    updateCallback(0, `Error: ${err.message}`);
   }
 };
 

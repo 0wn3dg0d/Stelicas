@@ -1,68 +1,116 @@
-const { app, BrowserWindow, ipcMain, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, Menu, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs').promises;
 const drivelist = require('drivelist');
 const Store = require('electron-store');
+const Registry = require('winreg');
 
-// Define the base path for the application
 const appPath = app.isPackaged 
-  ? path.dirname(app.getPath('exe')) // For packaged version, use the directory of the executable
-  : app.getAppPath(); // For development, use the app's root directory
-
-// Define the config directory path
+  ? path.dirname(app.getPath('exe'))
+  : app.getAppPath();
+  
 const configDir = path.join(appPath, 'config');
-
-// Ensure the config directory exists
 fs.mkdir(configDir, { recursive: true }).catch(err => {
   console.error('Error creating config directory:', err);
 });
 
-// Initialize the store with custom config directory
 const store = new Store({
-  cwd: configDir,  // Save the config file in the app directory
+  cwd: configDir,
   defaults: {
     settings: {
       steam3Id: '',
       language: 'english',
       countryCode: 'us',
-      supportedLanguage: '0'
+      supportedLanguage: '0',
+      steamPath: ''
     }
   }
 });
 
 let mainWindow;
+let steamPath = store.get('settings.steamPath');
 
-// Function to find Steam installation path
-const findSteamPath = async () => {
+const findSteamPathRegistry = () => {
+  return new Promise((resolve) => {
+    if (process.platform !== 'win32') {
+      return resolve(null);
+    }
+    const regKey = new Registry({
+      hive: Registry.HKCU,
+      key: '\\Software\\Valve\\Steam'
+    });
+    regKey.get('SteamPath', (err, item) => {
+      if (err || !item || !item.value) {
+        console.log('SteamPath not found in HKCU. Trying HKLM...');
+        const regKeyLM = new Registry({
+          hive: Registry.HKLM,
+          key: '\\Software\\WOW6432Node\\Valve\\Steam'
+        });
+        regKeyLM.get('InstallPath', (errLM, itemLM) => {
+          if (errLM || !itemLM || !itemLM.value) {
+            console.log('InstallPath not found in HKLM.');
+            resolve(null);
+          } else {
+            console.log(`Found Steam via HKLM Registry: ${itemLM.value}`);
+            resolve(itemLM.value);
+          }
+        });
+      } else {
+        console.log(`Found Steam via HKCU Registry: ${item.value}`);
+        resolve(item.value);
+      }
+    });
+  });
+};
+
+const findSteamPathFallback = async () => {
   const drives = await drivelist.list();
-
   for (const drive of drives) {
-    const mountpoints = drive.mountpoints;
-    for (const mountpoint of mountpoints) {
+    for (const mountpoint of drive.mountpoints) {
       const possiblePaths = [
         path.join(mountpoint.path, 'Program Files (x86)', 'Steam'),
         path.join(mountpoint.path, 'Program Files', 'Steam'),
         path.join(mountpoint.path, 'Steam'),
       ];
-
       for (const possiblePath of possiblePaths) {
         try {
           await fs.access(possiblePath);
+          console.log(`Found Steam via fallback search: ${possiblePath}`);
           return possiblePath;
-        } catch (err) {
-          // Skip if folder not found
-        }
+        } catch (err) {}
       }
     }
   }
-
   return null;
 };
+
+const findSteamPath = async () => {
+    if (steamPath) {
+        try {
+            await fs.access(steamPath);
+            console.log(`Using stored Steam path: ${steamPath}`);
+            return steamPath;
+        } catch (e) {
+            console.log('Stored Steam path is invalid, searching again.');
+        }
+    }
+    let foundPath = await findSteamPathRegistry();
+    if (!foundPath) {
+        foundPath = await findSteamPathFallback();
+    }
+    if (foundPath) {
+        steamPath = foundPath.replace(/\//g, '\\');
+        store.set('settings.steamPath', steamPath);
+    } else {
+        console.error('Steam installation path not found automatically.');
+    }
+    return foundPath;
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 800,
-    height: 780,
+    height: 820,
     resizable: true,
     titleBarStyle: 'hidden',
     webPreferences: {
@@ -74,65 +122,69 @@ function createWindow() {
     frame: false,
     backgroundColor: '#1b2838'
   });
-
   Menu.setApplicationMenu(null);
-
   mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
-
   mainWindow.on('closed', () => {
     mainWindow = null;
-  });
-
-  mainWindow.on('resize', () => {
-    mainWindow.webContents.send('window-resized');
   });
 }
 
 app.on('ready', createWindow);
-
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
   }
 });
-
 app.on('activate', () => {
   if (mainWindow === null) {
     createWindow();
   }
 });
 
-ipcMain.on('start-process', (event, { steam3Id, language, countryCode, supportedLanguage }) => {
-  // Save settings to store
-  store.set('settings', { steam3Id, language, countryCode, supportedLanguage });
-
+ipcMain.on('start-process', async (event, { steam3Id, language, countryCode, supportedLanguage }) => {
+  store.set('settings.steam3Id', steam3Id);
+  store.set('settings.language', language);
+  store.set('settings.countryCode', countryCode);
+  store.set('settings.supportedLanguage', supportedLanguage);
+  
+  const currentSteamPath = await findSteamPath();
   const { main } = require('./index.js');
   main(steam3Id, language, countryCode, supportedLanguage, (progress, status) => {
     event.reply('process-update', { progress, status });
-  });
+  }, currentSteamPath);
 });
 
-ipcMain.on('minimize-window', () => {
-  if (mainWindow) {
-    mainWindow.minimize();
-  }
+ipcMain.on('minimize-window', () => mainWindow?.minimize());
+ipcMain.on('close-window', () => mainWindow?.close());
+
+ipcMain.handle('get-steam-path', findSteamPath);
+
+ipcMain.handle('select-steam-path', async () => {
+    const result = await dialog.showOpenDialog(mainWindow, {
+        properties: ['openDirectory'],
+        title: 'Select your Steam installation folder'
+    });
+    if (!result.canceled && result.filePaths.length > 0) {
+        const selectedPath = result.filePaths[0];
+        try {
+            await fs.access(path.join(selectedPath, 'steam.exe'));
+            steamPath = selectedPath;
+            store.set('settings.steamPath', steamPath);
+            return steamPath;
+        } catch (e) {
+            return null;
+        }
+    }
+    return null;
 });
 
-ipcMain.on('close-window', () => {
-  if (mainWindow) {
-    mainWindow.close();
-  }
-});
 
 ipcMain.handle('get-userdata-ids', async () => {
-  const steamPath = await findSteamPath();
-
-  if (!steamPath) {
+  const currentSteamPath = await findSteamPath();
+  if (!currentSteamPath) {
     return [];
   }
-
-  const userdataPath = path.join(steamPath, 'userdata');
-
+  const userdataPath = path.join(currentSteamPath, 'userdata');
   try {
     await fs.access(userdataPath);
     const folders = await fs.readdir(userdataPath);
@@ -143,12 +195,16 @@ ipcMain.handle('get-userdata-ids', async () => {
 });
 
 ipcMain.handle('is-steam-running', async () => {
-  const psList = await import('ps-list');
-  const processes = await psList.default();
-  return processes.some(process => process.name.toLowerCase() === 'steam.exe');
+  try {
+    const psList = await import('ps-list');
+    const processes = await psList.default();
+    return processes.some(process => process.name.toLowerCase() === 'steam.exe');
+  } catch (e) {
+      console.error("Failed to check for Steam process:", e);
+      return false;
+  }
 });
 
-// Add this handler to get saved settings
 ipcMain.handle('get-settings', () => {
   return store.get('settings');
 });
